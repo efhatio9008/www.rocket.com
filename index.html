@@ -1,791 +1,951 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>kiki 幸运转盘</title>
+  <meta name="theme-color" content="#f8f1f2" />
+  <title>Kiki</title>
   <style>
-    * {
-      box-sizing: border-box;
+    :root {
+      color-scheme: light;
+      --canvas: #f8f1f2;
+      --surface: #fffafb;
+      --paper: #fff;
+      --ink: #322032;
+      --muted: #675466;
+      --accent: #8b315b;
+      --accent-dark: #732348;
+      --accent-soft: #f8e8ee;
+      --line: #eadce3;
+      --plum: #38243e;
+      --gold: #edcaaa;
+      --radius: 28px;
+      --shadow: 0 24px 64px -36px #5e345a70;
+      --ease: cubic-bezier(.22, .72, .27, 1);
+      --sans: system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+      --serif: Georgia, "Songti SC", "Noto Serif CJK SC", "SimSun", serif;
     }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    [hidden] { display: none !important; }
 
     body {
-      margin: 0;
+      min-width: 0;
       min-height: 100vh;
-      font-family: Arial, Helvetica, sans-serif;
+      margin: 0;
+      color: var(--ink);
       background:
-        radial-gradient(circle at top, rgba(255,255,255,0.12), transparent 35%),
-        linear-gradient(135deg, #1d1b31 0%, #2c2954 45%, #1a1330 100%);
-      color: #fff;
+        radial-gradient(ellipse at 12% 8%, #fffbf0 0%, transparent 45%),
+        radial-gradient(ellipse at 88% 68%, #efe1f0 0%, transparent 48%),
+        var(--canvas);
+      font: 1rem/1.6 var(--sans);
+    }
+
+    body.has-dialog { overflow: hidden; }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: not-allowed; opacity: .64; }
+
+    :focus-visible {
+      outline: 3px solid var(--focus-color, var(--accent));
+      outline-offset: 3px;
+    }
+
+    h1, h2, p { margin: 0; }
+    h1, h2 { line-height: 1.2; }
+    h1:focus-visible { outline: none; }
+
+    .site-header {
+      position: relative;
+      z-index: 2;
+      border-bottom: 1px solid var(--line);
+      background: #fffafbe8;
+    }
+
+    .header-inner {
+      position: relative;
+      width: min(100% - 64px, 1140px);
+      min-height: 80px;
+      margin-inline: auto;
       display: flex;
       align-items: center;
-      justify-content: center;
-      padding: 20px;
-      overflow: hidden;
+      justify-content: space-between;
+      gap: 20px;
     }
+
+    .brand, .menu-btn, .menu-item {
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      border: 0;
+      color: var(--ink);
+      background: transparent;
+      font-weight: 650;
+    }
+
+    .brand {
+      padding: 0;
+      gap: 11px;
+      font: 700 1.65rem/1 var(--serif);
+    }
+
+    .brand-mark {
+      width: 42px;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      background: var(--plum);
+      color: #ffe5d0;
+      font-size: 1.25rem;
+      box-shadow: 0 6px 14px #38243e2b;
+    }
+
+    .menu-btn {
+      display: none;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      padding: 0 13px;
+      background: var(--paper);
+    }
+
+    .menu-panel { display: flex; gap: 5px; }
+
+    .menu-item {
+      padding: 0 14px;
+      border-radius: 12px;
+      white-space: nowrap;
+      color: var(--muted);
+      font-size: .9rem;
+      transition: color .18s, background .18s;
+    }
+
+    .menu-item[aria-current="page"], .menu-item:hover, .menu-btn:hover {
+      color: var(--accent-dark);
+      background-color: var(--accent-soft);
+    }
+
+    main {
+      width: min(100% - 64px, 1140px);
+      margin-inline: auto;
+      padding-block: clamp(28px, 6vw, 76px);
+    }
+
+    .page { animation: enter .3s var(--ease) both; }
 
     .container {
-      width: 100%;
-      max-width: 700px;
+      border: 1px solid #fff;
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .content-card {
+      margin-inline: auto;
+      padding: clamp(24px, 5vw, 56px);
+      max-width: 940px;
+    }
+
+    .page-heading {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .page-heading h1 {
+      font: 700 clamp(1.85rem, 4vw, 2.85rem)/1.16 var(--serif);
+    }
+
+    .page-icon {
+      display: grid;
+      flex: 0 0 auto;
+      place-items: center;
+      width: 52px;
+      height: 52px;
+      border: 1px solid #f1dce5;
+      border-radius: 17px;
+      background: var(--accent-soft);
+      color: var(--accent-dark);
+      font-size: 1.35rem;
+    }
+
+    .subtext { margin-top: 8px; color: var(--muted); }
+
+    .button {
+      min-height: 48px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 9px 17px;
+      border: 1px solid transparent;
+      border-radius: 13px;
+      font-weight: 700;
       text-align: center;
-      background: rgba(255,255,255,0.08);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 28px;
-      padding: 24px 18px 28px;
-      box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+      transition: transform .18s var(--ease), background-color .18s, box-shadow .18s;
+    }
+
+    .button-primary {
+      color: #fff;
+      background: var(--accent);
+      box-shadow: 0 9px 19px -10px #8b315b99;
+    }
+
+    .button-primary:hover:not(:disabled) { background: var(--accent-dark); }
+
+    .button-secondary {
+      color: var(--accent-dark);
+      border-color: var(--line);
+      background: var(--paper);
+    }
+
+    .button-secondary:hover:not(:disabled) { background: var(--accent-soft); }
+    #musicBtn[aria-pressed="true"] {
+      border-color: #c589a5;
+      background: var(--accent-soft);
+    }
+
+    .button:active:not(:disabled) { transform: translateY(1px); }
+
+    .home-card {
+      display: grid;
+      grid-template-columns: .94fr 1.06fr;
+      padding: 10px;
+    }
+
+    .home-copy {
+      align-self: center;
+      padding: clamp(25px, 5vw, 65px);
+      min-width: 0;
+    }
+
+    .home-title {
+      font: 700 clamp(2.35rem, 5vw, 4.55rem)/1.05 var(--serif);
+      letter-spacing: -.045em;
+    }
+
+    .home-title span {
+      display: block;
+      width: fit-content;
+      margin-bottom: 10px;
+      color: var(--accent);
+      font-size: .78em;
+      font-style: italic;
+      font-weight: 400;
+    }
+
+    .home-copy .subtext { margin-top: 20px; }
+    .home-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+
+    .tip {
+      margin-top: 28px;
+      padding-top: 17px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: .86rem;
+    }
+
+    .wheel-stage {
       position: relative;
+      isolation: isolate;
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      min-height: 470px;
+      padding: clamp(34px, 5vw, 70px);
+      border-radius: calc(var(--radius) - 7px);
+      background:
+        radial-gradient(ellipse at 56% 43%, #704564 0%, transparent 59%),
+        linear-gradient(145deg, #51334d, #2e203b 80%);
+      color: var(--gold);
     }
 
-  #myVideo {
-  width: 320px;        /* 👈 固定宽度（关键） */
-  max-width: 90%;      
-  height: auto;
-  object-fit: contain;
-  display: block;
-  margin: 0 auto;
-  max-height: 280px
-}
-
-    h1 {
-      margin: 0 0 8px;
-      font-size: 28px;
-      letter-spacing: 1px;
+    .wheel-stage::before, .wheel-stage::after {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      width: min(84%, 415px);
+      aspect-ratio: 1;
+      border: 1px solid #f9d8c850;
+      border-radius: 50%;
     }
 
-    .subtext {
-      margin: 0 0 20px;
-      font-size: 14px;
-      color: rgba(255,255,255,0.8);
+    .wheel-stage::after {
+      width: min(91%, 459px);
+      border-style: dashed;
+      opacity: .6;
     }
+
+    .sparkle { position: absolute; font-size: 1.65rem; line-height: 1; }
+    .sparkle-top { top: 12%; right: 14%; }
+    .sparkle-bottom { bottom: 13%; left: 13%; font-size: 1.25rem; }
+    .sparkle-small { top: 25%; left: 13%; font-size: .8rem; }
+    .sparkle-side { bottom: 21%; right: 10%; font-size: .95rem; }
 
     .wheel-wrap {
       position: relative;
-      width: 280px;
-      height: 280px;
-      margin: 0 auto 22px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .pointer {
-      display: none;
+      width: min(100%, 352px);
+      aspect-ratio: 1;
+      border-radius: 50%;
+      box-shadow: 0 18px 46px #241229aa;
     }
 
     .wheel {
       width: 100%;
       height: 100%;
-      border-radius: 50%;
+      padding: 6px;
       overflow: hidden;
-      border: 8px solid rgba(255,255,255,0.95);
-      box-shadow:
-        0 10px 25px rgba(0,0,0,0.3),
-        inset 0 0 20px rgba(255,255,255,0.25);
-      transition: transform 4s cubic-bezier(0.15, 0.85, 0.18, 1);
-      background: #fff;
-      position: relative;
+      border: 2px solid #ffe2c6;
+      border-radius: 50%;
+      background: conic-gradient(#f8e3cc, #bb8d88, #ffe5c4, #8c536f, #f8e3cc);
+      transition: transform 4s cubic-bezier(.15, .85, .18, 1);
     }
 
     .wheel img {
+      display: block;
       width: 100%;
       height: 100%;
+      border: 1px solid #fff7;
+      border-radius: inherit;
       object-fit: cover;
-      display: block;
+      object-position: 50% 42%;
       user-select: none;
       -webkit-user-drag: none;
     }
 
-    .center-dot {
-      display: none;
+    .pointer {
+      position: absolute;
+      z-index: 1;
+      top: -9px;
+      left: 50%;
+      width: 18px;
+      height: 18px;
+      border: 1px solid #fff1d5;
+      border-radius: 4px;
+      background: var(--gold);
+      box-shadow: 0 4px 10px #2e203b70;
+      transform: translateX(-50%) rotate(45deg);
     }
 
-    .buttons {
+    .chest-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .chest {
+      position: relative;
+      min-width: 0;
+      min-height: 145px;
+      display: grid;
+      place-content: center;
+      justify-items: center;
+      gap: 8px;
+      padding: 16px 6px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      color: var(--ink);
+      background: linear-gradient(150deg, var(--paper), var(--chest-tint, #f8e6ed));
+      box-shadow: 0 14px 26px -24px #53334d9c;
+      transition: transform .22s var(--ease), box-shadow .22s, border-color .22s;
+    }
+
+    .chest:nth-child(2) { --chest-tint: #faeddf; }
+    .chest:nth-child(3) { --chest-tint: #eee6f6; }
+    .chest:nth-child(4) { --chest-tint: #f5e4ea; }
+    .chest:active { transform: scale(.98); }
+    .chest-icon { font-size: 2.6rem; line-height: 1.25; }
+    .chest-label { font-size: .88rem; font-weight: 700; }
+    .chest-icon.is-open { animation: reveal .38s var(--ease) both; }
+
+    .game-result:not(:empty) {
+      min-height: 58px;
+      display: grid;
+      place-items: center;
+      margin-top: 20px;
+      padding: 12px 16px;
+      border: 1px dashed #d8bdce;
+      border-radius: 15px;
+      background: #fbf2f6;
+      text-align: center;
+      color: var(--accent-dark);
+      font-weight: 650;
+    }
+
+    .game-result.is-revealed { animation: enter .28s var(--ease) both; }
+
+    .video-container { max-width: 840px; }
+
+    .video-frame {
+      padding: 8px;
+      overflow: hidden;
+      border: 1px solid #664961;
+      border-radius: 21px;
+      background: radial-gradient(ellipse at 50% 40%, #533650, #2d2034 78%);
+      --focus-color: var(--gold);
+    }
+
+    #myVideo {
+      display: block;
+      width: 100%;
+      height: clamp(240px, 50vh, 470px);
+      height: clamp(240px, 53svh, 470px);
+      border-radius: 13px;
+      object-fit: contain;
+    }
+
+    .video-actions { margin-top: 18px; }
+
+    .blog-card { max-width: 760px; }
+    .blog-card h2 { font-size: 1.1rem; }
+
+    .identity-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .identity {
+      min-height: 66px;
+      justify-content: flex-start;
+      text-align: left;
+      overflow-wrap: anywhere;
+    }
+
+    .identity[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+
+    .identity-mark {
+      display: grid;
+      flex: 0 0 auto;
+      width: 30px;
+      height: 30px;
+      place-items: center;
+      border-radius: 10px;
+      background: #f3e6ee;
+      color: var(--accent-dark);
+      font: 700 .95rem var(--serif);
+    }
+
+    #passwordBox { margin-top: 22px; }
+    .field-label { display: block; margin-bottom: 7px; font-size: .88rem; font-weight: 700; }
+
+    .form-row { display: flex; align-items: stretch; gap: 9px; }
+
+    .form-row input {
+      flex: 1 1 auto;
+      width: 100%;
+      min-width: 0;
+      min-height: 48px;
+      padding: 9px 12px;
+      border: 1px solid #d8c1cf;
+      border-radius: 13px;
+      background: var(--paper);
+      color: var(--ink);
+    }
+
+    .form-row input::placeholder { color: var(--muted); }
+    .form-row .button { flex: 0 0 auto; }
+
+    .chat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .logout-btn { min-height: 44px; font-size: .88rem; }
+
+    #chatBox {
       display: flex;
       flex-direction: column;
-      gap: 12px;
-      align-items: center;
+      gap: 9px;
+      height: clamp(220px, 43vh, 390px);
+      margin-bottom: 14px;
+      padding: 14px;
+      overflow: auto;
+      overscroll-behavior: contain;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #f7edf3;
     }
 
-    button {
-      border: none;
-      border-radius: 999px;
-      padding: 14px 26px;
-      font-size: 17px;
-      font-weight: bold;
-      cursor: pointer;
-      transition: transform 0.18s ease, opacity 0.18s ease, background 0.18s ease;
-      min-width: 180px;
+    .message {
+      max-width: min(86%, 420px);
+      align-self: flex-start;
+      padding: 9px 13px;
+      border: 1px solid var(--line);
+      border-radius: 15px 15px 15px 4px;
+      background: var(--paper);
+      color: var(--ink);
+      overflow-wrap: anywhere;
     }
 
-    button:hover {
-      transform: translateY(-1px);
+    .message.is-own {
+      align-self: flex-end;
+      border-color: #edcfdd;
+      border-radius: 15px 15px 4px 15px;
+      background: #f6e0eb;
     }
 
-    button:disabled {
-      cursor: not-allowed;
-      opacity: 0.55;
-      transform: none;
+    .birthday-container {
+      max-width: 820px;
+      background: radial-gradient(ellipse at top right, #fae7ec, transparent 50%), var(--surface);
     }
 
-    .spin-btn {
-      background: linear-gradient(135deg, #ff6b81, #ff416c);
-      color: white;
-      box-shadow: 0 8px 20px rgba(255, 65, 108, 0.35);
+    .birthday-stage {
+      overflow: hidden;
+      position: relative;
+      padding: 14px;
+      border: 1px solid #654760;
+      border-radius: 20px;
+      background: radial-gradient(ellipse at 95% 0%, #57344d, transparent 65%), #35243a;
+      color: #fff0e8;
+      --focus-color: var(--gold);
     }
 
-    .music-btn {
-      background: rgba(255,255,255,0.12);
-      color: white;
-      border: 1px solid rgba(255,255,255,0.18);
-    }
-
-    .tip {
-      margin-top: 14px;
-      font-size: 13px;
-      color: rgba(255,255,255,0.72);
-      line-height: 1.5;
-    }
-
-    /* 弹出大图 */
-    .modal {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.78);
+    .stage-decoration {
       display: flex;
       align-items: center;
-      justify-content: center;
-      padding: 20px;
+      gap: 6px;
+      padding: 3px 5px 14px;
+      border-bottom: 1px solid #f4c9d34d;
+      color: var(--gold);
+    }
+
+    .stage-decoration span {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .stage-decoration span:nth-child(2) { opacity: .65; }
+    .stage-decoration span:nth-child(3) { opacity: .4; }
+
+    .cmd-box {
+      min-height: 202px;
+      max-height: 330px;
+      padding: 15px 5px 5px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      font: .94rem/1.85 ui-monospace, Consolas, var(--sans);
+      overflow-wrap: anywhere;
+    }
+
+    .birthday-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+
+    .rose {
+      position: absolute;
+      font-size: 1.4rem;
+      animation: rose-bloom 2s ease-out both;
+      pointer-events: none;
+    }
+
+    .modal, .secret-reward {
+      position: fixed;
+      z-index: 5;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 14px;
+      overflow: auto;
+      overscroll-behavior: contain;
+      background: #27182ce0;
       opacity: 0;
       visibility: hidden;
       pointer-events: none;
-      transition: opacity 0.25s ease, visibility 0.25s ease;
-      z-index: 999;
+      transition: opacity .24s, visibility .24s;
     }
 
-    .modal.show {
+    .modal.show, .secret-reward.show {
       opacity: 1;
       visibility: visible;
       pointer-events: auto;
     }
 
-    .modal-card {
+    .modal-card, .reward-card {
       position: relative;
-      width: min(92vw, 480px);
-      max-height: 88vh;
-      border-radius: 0;
-      overflow: hidden;
-      background: #111;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.45);
-      transform: scale(0.82);
-      transition: transform 0.28s ease;
+      width: min(100%, 470px);
+      border: 1px solid #fff;
+      border-radius: 22px;
+      background: var(--surface);
+      box-shadow: 0 24px 65px #170e23a8;
+      transform: translateY(12px) scale(.98);
+      transition: transform .28s var(--ease);
     }
 
-    .modal.show .modal-card {
-      transform: scale(1);
-    }
+    .show .modal-card, .show .reward-card { transform: none; }
 
+    .modal-card { padding: 8px; }
     .modal-card img {
-    width: 100%;
-    height: auto;
-    max-height: 70vh; /* 👈 关键：从88改成70 */
-    object-fit: contain;
-    display: block;
-    background: #111;
-    }
-
-    .love-text {
-    padding: 14px 18px 18px;
-    font-size: 16px;
-    color: #fff;
-    text-align: center;
-   line-height: 1.6;
-    background: rgba(0,0,0,0.6);
+      display: block;
+      width: 100%;
+      max-height: 68vh;
+      max-height: 68dvh;
+      border-radius: 15px;
+      object-fit: contain;
+      background: #322338;
     }
 
     .close-btn {
       position: absolute;
-      top: 10px;
-      right: 10px;
-      width: auto;
-      height: auto;
-      border: none;
-      border-radius: 0;
-      background: none;
-      color: #fff;
-      font-size: 36px;
+      z-index: 1;
+      top: 16px;
+      right: 16px;
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      border: 1px solid #f8eaf6;
+      border-radius: 50%;
+      color: var(--ink);
+      background: var(--paper);
+      box-shadow: 0 4px 14px #28162f55;
+      font-size: 1.5rem;
       line-height: 1;
-      cursor: pointer;
-      z-index: 2;
+      --focus-color: var(--gold);
     }
 
-    @media (min-width: 768px) {
-      .container {
-        max-width: 800px;
-        padding: 30px 24px 34px;
-      }
+    .close-btn:hover { color: var(--accent-dark); background: var(--accent-soft); }
+    .love-text { padding: 15px 13px 10px; text-align: center; font: 700 1.06rem/1.65 var(--serif); }
 
-      .wheel-wrap {
-        width: 360px;
-        height: 360px;
-      }
-
-      h1 {
-        font-size: 34px;
-      }
-
-      .subtext {
-        font-size: 15px;
-      }
-    }
-
-    #videoPage .video-container {
-  max-width: 560px;
-}
-
-    .petals {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  overflow: hidden;
-  z-index: 0;
-}
-
-.petals span {
-  position: absolute;
-  top: -10px;
-  width: 12px;
-  height: 12px;
-  background: pink;
-  border-radius: 50% 50% 50% 0;
-  opacity: 0.7;
-  animation: fall linear infinite;
-}
-
-@keyframes fall {
-  0% {
-    transform: translateY(0) translateX(0) rotate(0deg);
-  }
-  100% {
-    transform: translateY(100vh) translateX(50px) rotate(360deg);
-  }
-}
-
-/* ===== 隐藏奖励 ===== */
-    .secret-reward {
-      position: fixed;
-      inset: 0;
-      background: rgba(8, 6, 20, 0.82);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      opacity: 0;
-      visibility: hidden;
-      pointer-events: none;
-      transition: opacity 0.35s ease, visibility 0.35s ease;
-      z-index: 2000;
-      overflow: hidden;
-    }
-
-    .secret-reward.show {
-      opacity: 1;
-      visibility: visible;
-      pointer-events: auto;
-    }
-
-    .reward-message {
-      position: relative;
-      z-index: 3;
-      margin-top: 18px;
-      padding: 16px 22px;
-      max-width: 85vw;
+    .reward-card {
+      z-index: 1;
+      padding: clamp(22px, 6vw, 44px);
       text-align: center;
-      font-size: 22px;
-      line-height: 1.6;
-      font-weight: bold;
-      color: #fff;
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.18);
-      border-radius: 20px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.28);
-      backdrop-filter: blur(8px);
+      background: radial-gradient(ellipse at top, #fff0da, transparent 70%), var(--surface);
     }
 
-    .rocket {
-      position: absolute;
-      bottom: -140px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 90px;
-      z-index: 3;
-      opacity: 0;
-    }
+    .reward-ornament { color: var(--accent); font-size: 2.5rem; }
+    .reward-message { margin: 5px 0 22px; font: 700 clamp(1.15rem, 3vw, 1.55rem)/1.65 var(--serif); }
 
-    .secret-reward.show .rocket {
-      animation: rocketFly 2.8s ease-out forwards;
-    }
-
-    @keyframes rocketFly {
-      0% {
-        transform: translateX(-50%) translateY(0) scale(0.8) rotate(-8deg);
-        opacity: 0;
-      }
-      12% {
-        opacity: 1;
-      }
-      100% {
-        transform: translateX(-50%) translateY(-95vh) scale(1.15) rotate(8deg);
-        opacity: 0;
-      }
-    }
-
-    .fireworks {
-      position: absolute;
-      inset: 0;
-      overflow: hidden;
-      z-index: 2;
-      pointer-events: none;
-    }
+    .rocket, .fireworks { position: fixed; pointer-events: none; }
+    .rocket { bottom: -90px; left: 50%; font-size: 3.2rem; opacity: 0; }
+    .secret-reward.show .rocket { animation: rocket-fly 2.8s ease-out both; }
+    .fireworks { inset: 0; overflow: hidden; }
 
     .firework {
       position: absolute;
-      width: 12px;
-      height: 12px;
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
-      opacity: 0;
-      box-shadow:
-        0 -45px 0 #ff4d6d,
-        32px -32px 0 #ffd166,
-        45px 0 0 #06d6a0,
-        32px 32px 0 #4cc9f0,
-        0 45px 0 #f72585,
-        -32px 32px 0 #ffe066,
-        -45px 0 0 #90be6d,
-        -32px -32px 0 #9b5de5;
-      animation: burst 1.2s ease-out forwards;
+      box-shadow: 0 -45px #ffc2d7, 32px -32px #f7d1aa, 45px 0 #e3b2f1,
+        32px 32px #f7d1aa, 0 45px #ffc2d7, -32px 32px #f7d1aa,
+        -45px 0 #e3b2f1, -32px -32px #f7d1aa;
+      animation: burst 1.2s ease-out both;
+    }
+
+    @keyframes enter {
+      from { opacity: 0; transform: translateY(7px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes reveal {
+      0% { opacity: .4; transform: scale(.78); }
+      68% { opacity: 1; transform: scale(1.12); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes rose-bloom {
+      0% { opacity: 0; transform: translateY(30px) scale(.55); }
+      28% { opacity: 1; }
+      100% { opacity: 0; transform: translateY(-120px) scale(1.25) rotate(22deg); }
+    }
+
+    @keyframes rocket-fly {
+      0% { opacity: 0; transform: translate(-50%, 0) rotate(-8deg); }
+      15% { opacity: 1; }
+      100% { opacity: 0; transform: translate(-50%, -96vh) rotate(8deg); }
     }
 
     @keyframes burst {
-      0% {
-        transform: scale(0.2);
-        opacity: 0;
-      }
-      20% {
-        opacity: 1;
-      }
-      100% {
-        transform: scale(1.35);
-        opacity: 0;
-      }
+      0% { opacity: 0; transform: scale(.25); }
+      24% { opacity: 1; }
+      100% { opacity: 0; transform: scale(1.35); }
     }
 
-    .reward-close-btn {
-      position: relative;
-      z-index: 3;
-      margin-top: 20px;
-      border: none;
-      border-radius: 999px;
-      padding: 12px 22px;
-      font-size: 16px;
-      font-weight: bold;
-      cursor: pointer;
-      background: linear-gradient(135deg, #ffd166, #ff9f1c);
-      color: #2b1d00;
-      box-shadow: 0 8px 20px rgba(255, 159, 28, 0.35);
+    @media (hover: hover) {
+      .chest:hover {
+        border-color: #c895af;
+        box-shadow: 0 16px 27px -18px #53334d85;
+        transform: translateY(-4px);
+      }
+
+      .chest:active { transform: scale(.98); }
     }
-    /* ===== 发光戒指 ===== */
-    .ring {
-     position: fixed;
-     top: 15px; /* 👈 控制高度（可以自己微调） */
-      left: 50%;
-    transform: translateX(-50%);
-    width: 70px;
-   height: 70px;
-    border-radius: 50%;
 
-  /* 金色戒指 */
-  border: 6px solid #ffd166;
+    @media (max-width: 920px) {
+      .home-copy { padding: clamp(22px, 4vw, 40px); }
+      .wheel-stage { min-height: 390px; padding: clamp(38px, 6vw, 58px); }
+    }
 
-  /* 发光效果 */
-  box-shadow:
-    0 0 10px #ffd166,
-    0 0 20px #ffb703,
-    0 0 40px rgba(255, 183, 3, 0.6);
+    @media (max-width: 720px) {
+      .header-inner, main { width: calc(100% - 36px); }
+      .header-inner { min-height: 68px; }
+      .menu-btn { display: inline-flex; }
+      .menu-panel {
+        display: none;
+        position: absolute;
+        top: calc(100% - 4px);
+        right: 0;
+        width: min(245px, 100%);
+        padding: 7px;
+        border: 1px solid var(--line);
+        border-radius: 17px;
+        background: var(--surface);
+        box-shadow: 0 16px 40px -14px #5e345a68;
+      }
 
-  z-index: 9999;
-}
+      .menu-panel.show { display: grid; animation: enter .2s var(--ease) both; }
+      .menu-item { justify-content: flex-start; }
+      .home-card { grid-template-columns: 1fr; }
+      .home-copy { display: contents; }
+      .home-intro { padding: 21px 16px 18px; }
+      .home-title { font-size: clamp(2rem, 8vw, 3.6rem); }
+      .home-title span { display: inline; margin: 0 7px 0 0; }
+      .home-copy .subtext { margin-top: 9px; }
+      .wheel-stage { grid-row: 2; min-height: 0; padding: clamp(24px, 7vw, 55px); }
+      .wheel-wrap { width: min(100%, 280px); }
+      .wheel-stage::before { width: min(83%, 342px); }
+      .wheel-stage::after { width: min(92%, 373px); }
+      .home-controls { padding: 0 16px 18px; }
+      .home-actions { margin-top: 17px; }
+      .tip { margin-top: 15px; padding-top: 11px; }
+      .content-card { padding: clamp(18px, 5vw, 36px); }
+      .chest-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .chest { min-height: 110px; }
+    }
 
-/* 中间宝石 */
-.ring::after {
-  content: "";
-  position: absolute;
-  top: -18px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 20px;
-  height: 20px;
-  background: radial-gradient(circle, #fff, #90e0ef);
-  border-radius: 50%;
+    @media (max-width: 420px) {
+      main { padding-block: 16px 30px; }
+      .home-actions .button { flex: 1 1 auto; }
+      .page-heading { margin-bottom: 20px; gap: 11px; }
+      .page-icon { width: 43px; height: 43px; border-radius: 13px; }
+      .identity { padding-inline: 9px; gap: 6px; font-size: .9rem; }
+      .identity-mark { width: 25px; height: 25px; }
+      .video-actions .button { width: 100%; }
+    }
 
-  box-shadow:
-    0 0 10px #90e0ef,
-    0 0 20px #48cae4;
-}
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+      }
 
-/* 菜单按钮 */
-.menu-btn {
-  position: fixed;
-  top: 20px;
-  left: 20px;
-  font-size: 28px;
-  cursor: pointer;
-  z-index: 9999;
-}
-
-/* 菜单面板 */
-.menu-panel {
-  position: fixed;
-  top: 60px;
-  left: 20px;
-  background: rgba(0,0,0,0.8);
-  border-radius: 12px;
-  padding: 10px;
-  display: none;
-  z-index: 9999;
-}
-
-.menu-panel.show {
-  display: block;
-}
-
-.menu-item {
-  padding: 10px 16px;
-  cursor: pointer;
-  color: #fff;
-}
-
-.menu-item:hover {
-  background: rgba(255,255,255,0.1);
-}
-
-.chest {
-  font-size: 80px;
-  cursor: pointer;
-  margin: 20px 0;
-  transition: transform 0.3s;
-}
-
-.chest:hover {
-  transform: scale(1.1);
-}
-
-.game-result {
-  margin-top: 20px;
-  font-size: 18px;
-}
-
-.chest-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 15px;
-  margin-top: 20px;
-}
-
-.chest {
-  width: 120px;
-  height: 120px;
-
-  min-width: 120px;   
-  min-height: 120px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  font-size: 50px;
-
-  background: rgba(255,255,255,0.1);
-  border-radius: 20px;
-
-  cursor: pointer;
-  transition: transform 0.3s;
-}
-
-.chest:hover {
-  transform: scale(1.1);
-}
-
-#passwordBox {
-  margin-top: 15px;
-}
-
-#passwordBox input {
-  margin-bottom: 10px;
-  padding: 10px;
-  border-radius: 10px;
-  border: none;
-}
-
-#passwordBox button {
-  margin-top: 5px;
-}
-
-#login button {
-  margin: 8px 0;
-}
-
-/* ===== 聊天输入排版（关键修复） ===== */
-.chat-input-row {
-  display: flex;
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.chat-input-row input {
-  flex: 1;
-  padding: 12px;
-  border-radius: 999px;
-  border: none;
-  font-size: 14px;
-}
-
-.chat-input-row button {
-  padding: 10px 12px;
-  border-radius: 999px;
-  border: none;
-  background: #fff;
-  color: #333;
-  font-weight: bold;
-  cursor: pointer;
-}
-
-/* Logout 按钮 */
-.logout-btn {
-  margin-top: 12px;
-  padding: 12px 20px;
-  border-radius: 999px;
-  border: none;
-  background: #fff;
-  color: #000;
-  font-weight: bold;
-  width: 100%;
-}
-
-#blockPage .container {
-  width: 95.7%;        /* 👈 只缩聊天页 */
-  margin: 0 auto;    /* 👈 居中 */
-}
-
-.birthday-container {
-  width: 95%;
-  max-width: 480px;   /* 👈 变大一点（电脑更好看） */
-  margin: 40px auto 0; /* 👈 往下推，避开戒指 */
-  text-align: center;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 22px;
-  padding: 18px 14px;
-  box-shadow: 0 12px 35px rgba(0,0,0,0.35);
-  position: relative;
-  overflow: hidden;
-}
-
-.cmd-box {
-  min-height: 220px;
-  max-height: 300px;
-  overflow-y: auto;
-  background: rgba(0,0,0,0.75);
-  border-radius: 14px;
-  padding: 14px;
-  margin: 14px 0;
-  text-align: left;
-  font-family: monospace;
-  font-size: 13px;
-  line-height: 1.6;
-  color: #9cffb1;
-}
-
-.rose {
-  position: absolute;
-  font-size: 26px;
-  animation: roseBloom 2s ease-out forwards;
-  pointer-events: none;
-}
-
-@keyframes roseBloom {
-  0% {
-    transform: translateY(40px) scale(0.3) rotate(0deg);
-    opacity: 0;
-  }
-  30% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(-130px) scale(1.4) rotate(25deg);
-    opacity: 0;
-  }
-}
-
-.b-btn {
-  display: block;
-  width: 100%;
-  margin-top: 12px;   /* 👈 关键：分开按钮 */
-  padding: 12px;
-  border-radius: 999px;
-  border: none;
-  font-weight: bold;
-}
-
+      .wheel { transform: none !important; }
+      .chest:hover, .chest:active, .button:active { transform: none; }
+      .fireworks, .rocket, .rose { display: none; }
+    }
   </style>
 </head>
 <body>
-  <div class="menu-btn" id="menuBtn">☰</div>
+  <header class="site-header" id="siteHeader">
+    <div class="header-inner">
+      <button class="brand" id="brandHome" type="button" aria-label="Kiki 主页">
+        <span class="brand-mark" aria-hidden="true">✦</span>
+        Kiki
+      </button>
+      <button class="menu-btn" id="menuBtn" type="button" aria-expanded="false" aria-controls="menuPanel">
+        <span aria-hidden="true">☰</span> 菜单
+      </button>
+      <nav class="menu-panel" id="menuPanel" aria-label="主导航">
+        <button class="menu-item" id="goHome" type="button" aria-current="page">主页</button>
+        <button class="menu-item" id="goGame" type="button">神秘宝箱</button>
+        <button class="menu-item" id="goVideo" type="button">视频</button>
+        <button class="menu-item" id="goBlock" type="button" lang="en">Blog</button>
+        <button class="menu-item" id="goBirthday" type="button">Kiki 生日</button>
+      </nav>
+    </div>
+  </header>
 
-<div class="menu-panel" id="menuPanel">
-  <div class="menu-item" id="goHome">🏠 主页</div>
-  <div class="menu-item" id="goGame">🎮 游戏</div>
-  <div class="menu-item" id="goVideo">🎬 视频</div>
-  <div class="menu-item" id="goBlock">💬 Blog</div>
-  <div class="menu-item" id="goBirthday">🌹 Kiki 生日</div>
-</div>
-  <div class="petals"></div>
-  <div class="ring"></div>
-
-  <div class="page" id="homePage">
-  <div class="container">
-    <h1>🎡 Kiki 幸运转盘</h1>
-    <p class="subtext">点击开始旋转，停下后会自动放大显示图片</p>
-    <div class="wheel-wrap">
-      <div class="pointer"></div>
-      <div class="wheel" id="wheel">
-        <img id="wheelImage" src="1.jpeg" alt="转盘图片" />
+  <main id="mainContent">
+    <section class="page" id="homePage" aria-labelledby="homeTitle">
+      <div class="container home-card">
+        <div class="home-copy">
+          <div class="home-intro">
+            <h1 class="home-title" id="homeTitle" tabindex="-1"><span lang="en">Kiki</span> 幸运转盘</h1>
+            <p class="subtext">点击开始旋转，发现一张随机照片。</p>
+          </div>
+          <div class="home-controls">
+            <div class="home-actions">
+              <button class="button button-primary" id="spinBtn" type="button" aria-describedby="spinTip">
+                <span aria-hidden="true">↻</span> <span id="spinLabel">开始旋转</span>
+              </button>
+              <button class="button button-secondary" id="musicBtn" type="button" aria-pressed="false">
+                <span aria-hidden="true">♫</span> 背景音乐
+              </button>
+            </div>
+            <p class="tip" id="spinTip">
+              首次旋转会开启背景音乐。关闭照片后，即可继续下一轮。
+            </p>
+          </div>
+        </div>
+        <div class="wheel-stage">
+          <span class="sparkle sparkle-top" aria-hidden="true">✦</span>
+          <span class="sparkle sparkle-bottom" aria-hidden="true">✧</span>
+          <span class="sparkle sparkle-small" aria-hidden="true">✦</span>
+          <span class="sparkle sparkle-side" aria-hidden="true">✧</span>
+          <div class="wheel-wrap">
+            <div class="pointer" aria-hidden="true"></div>
+            <div class="wheel" id="wheel">
+              <img id="wheelImage" src="1.jpeg" alt="幸运转盘照片" />
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="center-dot"></div>
-    </div>
+    </section>
 
-    <div class="buttons">
-      <button class="spin-btn" id="spinBtn">开始旋转</button>
-      <button class="music-btn" id="musicBtn">🎵 开关背景音乐</button>
-    </div>
+    <section class="page" id="gamePage" aria-labelledby="gameTitle" hidden>
+      <div class="container content-card">
+        <header class="page-heading">
+          <span class="page-icon" aria-hidden="true">✧</span>
+          <div>
+            <h1 id="gameTitle" tabindex="-1">神秘宝箱</h1>
+            <p class="subtext">点击宝箱看看你的运气。</p>
+          </div>
+        </header>
+        <div class="chest-grid">
+          <button class="chest" type="button">
+            <span class="chest-icon" aria-hidden="true">🎁</span>
+            <span class="chest-label">宝箱 1</span>
+          </button>
+          <button class="chest" type="button">
+            <span class="chest-icon" aria-hidden="true">🎁</span>
+            <span class="chest-label">宝箱 2</span>
+          </button>
+          <button class="chest" type="button">
+            <span class="chest-icon" aria-hidden="true">🎁</span>
+            <span class="chest-label">宝箱 3</span>
+          </button>
+          <button class="chest" type="button">
+            <span class="chest-icon" aria-hidden="true">🎁</span>
+            <span class="chest-label">宝箱 4</span>
+          </button>
+        </div>
+        <div class="game-result" id="gameResult" role="status" aria-atomic="true"></div>
+      </div>
+    </section>
 
-    <div class="tip">
-      第一次点击按钮时会自动开启背景音乐。<br />
-      转盘结束后图片会自动放大，关闭后才能继续下一轮。
-    </div>
-  </div>
-  </div>
+    <section class="page" id="videoPage" aria-labelledby="videoTitle" hidden>
+      <div class="container content-card video-container">
+        <header class="page-heading">
+          <span class="page-icon" aria-hidden="true">▶</span>
+          <h1 id="videoTitle" tabindex="-1">视频时刻</h1>
+        </header>
+        <div class="video-frame">
+          <video id="myVideo" aria-labelledby="videoTitle" controls preload="metadata"
+            controlsList="nofullscreen nodownload noplaybackrate noremoteplayback">
+            <source src="11.mp4" type="video/mp4" />
+          </video>
+        </div>
+        <div class="video-actions">
+          <button class="button button-primary" id="playVideoBtn" type="button">
+            <span aria-hidden="true">▶</span> 播放视频
+          </button>
+        </div>
+      </div>
+    </section>
 
-  <!-- 背景音乐 -->
+    <section class="page" id="blockPage" aria-labelledby="blogTitle" hidden>
+      <div class="container content-card blog-card">
+        <header class="page-heading">
+          <span class="page-icon" aria-hidden="true">♡</span>
+          <h1 id="blogTitle" tabindex="-1" lang="en">Blog</h1>
+        </header>
+        <div id="login">
+          <h2 id="identityTitle">选择身份</h2>
+          <div class="identity-grid" role="group" aria-labelledby="identityTitle">
+            <button class="button button-secondary identity" type="button" data-user="kiki" aria-pressed="false">
+              <span class="identity-mark" aria-hidden="true">K</span> <span lang="en">Kiki</span>
+            </button>
+            <button class="button button-secondary identity" type="button" data-user="ting" aria-pressed="false">
+              <span class="identity-mark" aria-hidden="true">T</span> <span lang="en">Ting Soon</span>
+            </button>
+          </div>
+          <form id="passwordBox" style="display: none">
+            <label class="field-label" for="password">密码</label>
+            <div class="form-row">
+              <input id="password" type="password" placeholder="输入4位密码" autocomplete="current-password" />
+              <button class="button button-primary" type="submit">登录</button>
+            </div>
+          </form>
+        </div>
+
+        <div id="chat" style="display: none">
+          <div class="chat-header">
+            <h2 id="userTitle" tabindex="-1"></h2>
+            <button class="button button-secondary logout-btn" id="logoutBtn" type="button">退出登录</button>
+          </div>
+          <div id="chatBox" role="region" aria-label="聊天记录" tabindex="0"></div>
+          <form id="chatForm">
+            <label class="field-label" for="messageInput">消息</label>
+            <div class="form-row">
+              <input id="messageInput" maxlength="40" placeholder="最多40字" />
+              <button class="button button-primary" type="submit">发送</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="birthdayPage" aria-labelledby="birthdayTitle" hidden>
+      <div class="container content-card birthday-container">
+        <header class="page-heading">
+          <span class="page-icon" aria-hidden="true">🌹</span>
+          <h1 id="birthdayTitle" tabindex="-1" lang="en">Kiki Birthday</h1>
+        </header>
+        <div class="birthday-stage">
+          <div class="stage-decoration" aria-hidden="true"><span></span><span></span><span></span></div>
+          <div class="cmd-box" id="cmdBox" role="region" aria-label="生日小剧场" tabindex="0">
+            <div id="cmdText">点击开始，打开 Kiki 的生日小剧场...</div>
+          </div>
+        </div>
+        <div class="birthday-actions">
+          <button class="button button-primary" id="startBirthdayBtn" type="button">开始</button>
+          <button class="button button-secondary" id="giftBirthdayBtn" type="button" style="display: none">🎁 打开礼物</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
   <audio id="bgm" src="5.mp3" loop preload="auto"></audio>
 
-  <!-- 放大弹窗 -->
-  <div class="modal" id="imageModal">
-      <div class="modal-card">
-      <button class="close-btn" id="closeModalBtn">&times;</button>
-      <img id="modalImage" src="" alt="放大图片" />
-      <div class="love-text" id="loveText"></div>
+  <div class="modal" id="imageModal" role="dialog" aria-modal="true" aria-label="转盘照片"
+    aria-describedby="loveText" aria-hidden="true">
+    <div class="modal-card">
+      <button class="close-btn" id="closeModalBtn" type="button" aria-label="关闭照片">×</button>
+      <img id="modalImage" src="1.jpeg" alt="本轮转盘抽中的照片" />
+      <p class="love-text" id="loveText"></p>
     </div>
   </div>
 
-    <!-- 隐藏奖励 -->
-  <div class="secret-reward" id="secretReward">
-    <div class="fireworks" id="fireworks"></div>
-    <div class="rocket">🚀</div>
-    <div class="reward-message" id="rewardMessage"></div>
-    <button class="reward-close-btn" id="rewardCloseBtn">关闭奖励</button>
-  </div>
-
-   <div class="page" id="gamePage" style="display:none;">
-  <div class="container">
-    <h1>🎮 神秘宝箱</h1>
-    <p class="subtext">点击宝箱看看你的运气✨</p>
-
-    <div class="chest-grid">
-      <div class="chest">🎁</div>
-      <div class="chest">🎁</div>
-      <div class="chest">🎁</div>
-      <div class="chest">🎁</div>
-    </div>
-
-    <div class="game-result" id="gameResult"></div>
-  </div>
-</div>
-
-<div class="page" id="videoPage" style="display:none;">
-  <div class="container video-container">
-    <h1>🎬 视频时刻</h1>
-    <p class="subtext">点击按钮播放视频</p>
-
-    <video id="myVideo" controls preload="metadata"
-  controlsList="nofullscreen nodownload noplaybackrate noremoteplayback">
-      <source src="11.mp4" type="video/mp4">
-    </video>
-
-    <div style="margin-top:15px;">
-      <button id="playVideoBtn">▶️ 播放视频</button>
+  <div class="secret-reward" id="secretReward" role="dialog" aria-modal="true" aria-label="隐藏奖励"
+    aria-describedby="rewardMessage" aria-hidden="true">
+    <div class="fireworks" id="fireworks" aria-hidden="true"></div>
+    <div class="rocket" aria-hidden="true">🚀</div>
+    <div class="reward-card">
+      <div class="reward-ornament" aria-hidden="true">✦</div>
+      <p class="reward-message" id="rewardMessage"></p>
+      <button class="button button-primary" id="rewardCloseBtn" type="button">关闭奖励</button>
     </div>
   </div>
-</div>
-
-<div class="page" id="blockPage" style="display:none;">
-  <div class="container">
-
-    <!-- 登录 -->
-    <div id="login">
-      <h2>选择身份</h2>
-      <button onclick="selectUser('kiki')">Kiki</button>
-      <button onclick="selectUser('ting')">Ting Soon</button>
-
-      <div id="passwordBox" style="display:none;">
-        <input type="password" id="password" placeholder="输入4位密码">
-        <button onclick="loginUser()">登录</button>
-      </div>
-    </div>
-
-    <!-- 聊天 -->
-    <div id="chat" style="display:none;">
-      <h2 id="userTitle"></h2>
-      <div id="chatBox" style="height:300px;overflow:auto;"></div>
-      <div class="chat-input-row">
-  <input id="messageInput" maxlength="40" placeholder="最多40字">
-  <button onclick="sendMessage()">发送</button>
-</div>
-
-<button class="logout-btn" onclick="logoutUser()">Logout</button>
-    </div>
-
-  </div>
-</div>
-
-<div class="page" id="birthdayPage" style="display:none;">
-  <div class="birthday-container">
-    <h1>🌹 Kiki Birthday</h1>
-
-    <div class="cmd-box" id="cmdBox">
-      <div id="cmdText">点击开始，打开 Kiki 的生日小剧场...</div>
-    </div>
-
-    <button id="startBirthdayBtn" class="b-btn">开始</button>
-    <button id="giftBirthdayBtn" class="b-btn" style="display:none;">🎁 打开礼物</button>
-  </div>
-</div>
 
   <script>
     const images = [
-  "1.jpeg",
-  "2.jpeg",
-  "3.jpeg",
-  "4.jpeg",
-  "6.jpeg",
-  "7.jpeg",
-  "8.jpeg",
-  "9.jpeg",
-  "10.jpeg"
-];
+      "1.jpeg",
+      "2.jpeg",
+      "3.jpeg",
+      "4.jpeg",
+      "6.jpeg",
+      "7.jpeg",
+      "8.jpeg",
+      "9.jpeg",
+      "10.jpeg"
+    ];
     const wheel = document.getElementById("wheel");
     const wheelImage = document.getElementById("wheelImage");
     const spinBtn = document.getElementById("spinBtn");
@@ -797,23 +957,77 @@
     const loveText = document.getElementById("loveText");
 
     const loveMessages = [
-    "你是我每天醒来第一个想念的小宝贝。",
-    "如果世界很大，那我只想把你放在心里最中间。",
-    "你笑的时候，连空气都变得甜甜的。",
-    "有你在的每一天，都像被温柔包围。",
-    "你是我不经意间，最认真的喜欢。",
-    "就算什么都不做，只要你在身边就很好。",
-    "世界那么吵，但你在的时候就很安静很安心。",
-    "你是那种，一想起就会偷偷笑的人。",
-    "如果可以，我想每天都陪你慢慢变老。",
-    "你大概不知道，你对我来说有多特别。"
-];
+      "你是我每天醒来第一个想念的小宝贝。",
+      "如果世界很大，那我只想把你放在心里最中间。",
+      "你笑的时候，连空气都变得甜甜的。",
+      "有你在的每一天，都像被温柔包围。",
+      "你是我不经意间，最认真的喜欢。",
+      "就算什么都不做，只要你在身边就很好。",
+      "世界那么吵，但你在的时候就很安静很安心。",
+      "你是那种，一想起就会偷偷笑的人。",
+      "如果可以，我想每天都陪你慢慢变老。",
+      "你大概不知道，你对我来说有多特别。"
+    ];
     const closeModalBtn = document.getElementById("closeModalBtn");
 
     const secretReward = document.getElementById("secretReward");
     const rewardMessage = document.getElementById("rewardMessage");
     const rewardCloseBtn = document.getElementById("rewardCloseBtn");
     const fireworks = document.getElementById("fireworks");
+    const siteHeader = document.getElementById("siteHeader");
+    const mainContent = document.getElementById("mainContent");
+    const spinLabel = document.getElementById("spinLabel");
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+    let activeDialog = null;
+    let dialogReturnFocus = null;
+
+    function openDialog(dialog, closeButton) {
+      const focused = document.activeElement;
+      dialogReturnFocus = focused === document.body ? spinBtn : focused;
+      activeDialog = dialog;
+      dialog.classList.add("show");
+      dialog.removeAttribute("aria-hidden");
+      siteHeader.inert = true;
+      mainContent.inert = true;
+      document.body.classList.add("has-dialog");
+      closeButton.focus();
+    }
+
+    function dismissDialog(dialog) {
+      dialog.classList.remove("show");
+      siteHeader.inert = false;
+      mainContent.inert = false;
+      document.body.classList.remove("has-dialog");
+      spinBtn.disabled = false;
+      const target = dialogReturnFocus?.getClientRects().length
+        ? dialogReturnFocus
+        : mainContent.querySelector(".page:not([hidden]) h1");
+      target?.focus({ preventScroll: true });
+      dialog.setAttribute("aria-hidden", "true");
+      activeDialog = null;
+      dialogReturnFocus = null;
+    }
+
+    document.addEventListener("keydown", (event) => {
+      if (!activeDialog) return;
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        if (activeDialog === imageModal) closeModal();
+        else closeSecretReward();
+      } else if (event.key === "Tab") {
+        event.preventDefault();
+        activeDialog.querySelector("button").focus();
+      }
+    });
+
+    function updateMusicState() {
+      musicBtn.setAttribute("aria-pressed", String(!bgm.paused));
+    }
+
+    bgm.addEventListener("play", updateMusicState);
+    bgm.addEventListener("pause", updateMusicState);
 
     const rewardMessages = [
       "愿你每天都开开心心，笑容一直都在。",
@@ -871,7 +1085,7 @@
       }
     }
 
-        function launchFireworks() {
+    function launchFireworks() {
       fireworks.innerHTML = "";
 
       const positions = [
@@ -897,36 +1111,32 @@
         rewardMessages[Math.floor(Math.random() * rewardMessages.length)];
 
       rewardMessage.textContent = randomMessage;
-      secretReward.classList.add("show");
       spinBtn.disabled = true;
+      openDialog(secretReward, rewardCloseBtn);
 
-      launchFireworks();
+      if (!reducedMotion.matches) launchFireworks();
     }
 
     function closeSecretReward() {
-      secretReward.classList.remove("show");
+      dismissDialog(secretReward);
       fireworks.innerHTML = "";
-      spinBtn.disabled = false;
     }
 
     function showModal(imageSrc) {
-    modalImage.src = imageSrc;
+      modalImage.src = imageSrc;
+      const randomText =
+        loveMessages[Math.floor(Math.random() * loveMessages.length)];
 
-    const randomText =
-    loveMessages[Math.floor(Math.random() * loveMessages.length)];
-
-    loveText.textContent = randomText;
-
-    imageModal.classList.add("show");
-    spinBtn.disabled = true;
+      loveText.textContent = randomText;
+      spinBtn.disabled = true;
+      openDialog(imageModal, closeModalBtn);
     }
 
     function closeModal() {
-      imageModal.classList.remove("show");
-      spinBtn.disabled = false;
+      dismissDialog(imageModal);
     }
 
-       function startSpin() {
+    function startSpin() {
       if (
         isSpinning ||
         imageModal.classList.contains("show") ||
@@ -937,6 +1147,7 @@
 
       isSpinning = true;
       spinBtn.disabled = true;
+      spinLabel.textContent = "旋转中…";
 
       spinCount++;
 
@@ -961,6 +1172,7 @@
         }
 
         isSpinning = false;
+        spinLabel.textContent = "开始旋转";
       }, 4000);
     }
 
@@ -974,356 +1186,392 @@
         closeModal();
       }
     });
-    
-    const petalsContainer = document.querySelector(".petals");
 
-for (let i = 0; i < 30; i++) {
-  const petal = document.createElement("span");
+    const menuBtn = document.getElementById("menuBtn");
+    const menuPanel = document.getElementById("menuPanel");
+    const compactNav = window.matchMedia("(max-width: 720px)");
+    const destinations = [
+      ["goHome", "homePage"],
+      ["goGame", "gamePage"],
+      ["goVideo", "videoPage"],
+      ["goBlock", "blockPage"],
+      ["goBirthday", "birthdayPage"]
+    ].map(([linkId, pageId]) => ({
+      link: document.getElementById(linkId),
+      page: document.getElementById(pageId)
+    }));
 
-  petal.style.left = Math.random() * 100 + "vw";
-  petal.style.animationDuration = 5 + Math.random() * 5 + "s";
-  petal.style.opacity = Math.random();
+    const myVideo = document.getElementById("myVideo");
+    const playVideoBtn = document.getElementById("playVideoBtn");
 
-  petalsContainer.appendChild(petal);
-}
+    function setMenu(open) {
+      menuPanel.classList.toggle("show", open);
+      menuBtn.setAttribute("aria-expanded", String(open));
+    }
 
-const menuBtn = document.getElementById("menuBtn");
-const menuPanel = document.getElementById("menuPanel");
-const goHome = document.getElementById("goHome");
-const goGame = document.getElementById("goGame");
-
-const homePage = document.getElementById("homePage");
-const gamePage = document.getElementById("gamePage");
-
-const goVideo = document.getElementById("goVideo");
-const videoPage = document.getElementById("videoPage");
-const myVideo = document.getElementById("myVideo");
-const playVideoBtn = document.getElementById("playVideoBtn");
-const goBlock = document.getElementById("goBlock");
-const blockPage = document.getElementById("blockPage");
-const goBirthday = document.getElementById("goBirthday");
-const birthdayPage = document.getElementById("birthdayPage");
-
-menuBtn.onclick = () => {
-  menuPanel.classList.toggle("show");
-};
-
-goHome.onclick = () => {
-  homePage.style.display = "block";
-  gamePage.style.display = "none";
-  videoPage.style.display = "none";
-  blockPage.style.display = "none"; // ✅加这个
-  menuPanel.classList.remove("show");
-  birthdayPage.style.display = "none";
-};
-
-goGame.onclick = () => {
-  homePage.style.display = "none";
-  gamePage.style.display = "block";
-  videoPage.style.display = "none";
-  blockPage.style.display = "none"; // ✅加这个
-  menuPanel.classList.remove("show");
-  birthdayPage.style.display = "none";
-};
-
-goVideo.onclick = () => {
-  homePage.style.display = "none";
-  gamePage.style.display = "none";
-  videoPage.style.display = "block";
-  blockPage.style.display = "none"; // ✅加这个
-  menuPanel.classList.remove("show");
-  birthdayPage.style.display = "none";
-};
-
-goBlock.onclick = () => {
-  homePage.style.display = "none";
-  gamePage.style.display = "none";
-  videoPage.style.display = "none";
-  blockPage.style.display = "block";
-  menuPanel.classList.remove("show");
-  birthdayPage.style.display = "none";
-};
-
-goBirthday.onclick = () => {
-  homePage.style.display = "none";
-  gamePage.style.display = "none";
-  videoPage.style.display = "none";
-  blockPage.style.display = "none";
-  birthdayPage.style.display = "block";
-  menuPanel.classList.remove("show");
-};
-
-playVideoBtn.onclick = () => {
-  myVideo.play();
-};
-
-myVideo.addEventListener("play", () => {
-  bgm.pause();
-});
-
-myVideo.onended = () => {
-  // 不恢复音乐
-};
-
-const chests = document.querySelectorAll(".chest");
-
-let rewardIndex = 0;
-
-const rewards = [
-  { text: "💎 恭喜你获得钻石！", effect: "diamond" },
-  { text: "🟡 恭喜你获得黄金！", effect: "gold" },
-  { text: "💼 恭喜你获得幸运祝福！事业上涨！", effect: "luck" },
-  { text: "📦 很可惜是空宝箱，再接再厉！", effect: "empty" }
-];
-
-chests.forEach((chest) => {
-  chest.onclick = () => {
-
-    const reward = rewards[rewardIndex];
-
-    // 显示文字
-    gameResult.textContent = reward.text;
-
-    // 改成奖励图标
-    chest.textContent = getIcon(reward.effect);
-
-    // 🔥 2秒后恢复礼盒
-    setTimeout(() => {
-      chest.textContent = "🎁";
-    }, 2000);
-
-    // 轮流切换
-    rewardIndex = (rewardIndex + 1) % rewards.length;
-  };
-});
-
-
-  function getIcon(type) {
-  if (type === "diamond") return "💎";
-  if (type === "gold") return "🟡";
-  if (type === "luck") return "✨";
-  return "📦";
-}
-
-let currentUser = null;
-
-const users = {
-  kiki: { name: "Kiki", password: "2299" },
-  ting: { name: "Ting Soon", password: "4488" }
-};
-
-function selectUser(user){
-  currentUser = user;
-  document.getElementById("password").value = "";
-  document.getElementById("passwordBox").style.display = "block";
-}
-
-function loginUser(){
-  const pwd = document.getElementById('password').value;
-
-  if(pwd === users[currentUser].password){
-    document.getElementById('login').style.display = "none";
-    document.getElementById('chat').style.display = "block";
-    document.getElementById('userTitle').innerText = users[currentUser].name;
-    loadMessages();
-
-  setInterval(loadMessages, 2000);
-
-  }else{
-    alert("密码错误");
-  }
-}
-
-function loadMessages(){
-  fetch("https://www-rocket-com.onrender.com/messages")
-    .then(res => res.json())
-    .then(messages => {
-      const now = Date.now();
-
-      if (messages.length > 0) {
-        const startTime = messages[0].created_at;
-        if (now - startTime > 86400000) {
-          fetch("https://www-rocket-com.onrender.com/messages", {
-            method: "DELETE"
-          }).then(() => {
-            render([]);
-          });
-          return;
-        }
-      }
-
-      render(messages);
-    })
-    .catch(err => {
-      console.log("读取消息失败:", err);
-    });
-}
-
-function render(messages){
-  const box = document.getElementById("chatBox");
-  box.innerHTML = "";
-
-  messages.forEach(m=>{
-    const div = document.createElement("div");
-   div.innerText = (m.user === currentUser ? "我: " : "对方: ") + m.text;
-    box.appendChild(div);
-  });
-}
-
-function sendMessage(){
-  const input = document.getElementById("messageInput");
-  const text = input.value.trim();
-  if(!text) return;
-
-  if(text.length > 40){
-    alert("超过40字");
-    return;
-  }
-
-  fetch("https://www-rocket-com.onrender.com/messages")
-    .then(res => res.json())
-    .then(messages => {
-      const now = Date.now();
-
-      if (messages.length > 0) {
-        const startTime = messages[0].created_at;
-
-        if (now - startTime > 86400000) {
-          return fetch("https://www-rocket-com.onrender.com/messages", {
-            method: "DELETE"
-          }).then(() => []);
-        }
-      }
-
-      return messages;
-    })
-    .then(messages => {
-      const now = Date.now();
-
-      if(messages.length >= 20){
-        const lockTime = messages[19].created_at;
-
-        if(now - lockTime < 86400000){
-          alert("已达20条，等24小时");
-          return;
-        } else {
-          return fetch("https://www-rocket-com.onrender.com/messages", {
-            method: "DELETE"
-          }).then(() => []);
-        }
-      }
-
-      return fetch("https://www-rocket-com.onrender.com/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          user: currentUser,
-          text: text,
-          created_at: now
-        })
+    function navigateTo(destination) {
+      destinations.forEach(({ link, page }) => {
+        const active = page === destination;
+        page.hidden = !active;
+        if (active) link.setAttribute("aria-current", "page");
+        else link.removeAttribute("aria-current");
       });
-    })
-    .then(() => {
-      input.value = "";
-      loadMessages();
-    })
-    .catch(err => {
-      console.log("发送失败:", err);
+
+      window.scrollTo(0, 0);
+      destination.querySelector("h1").focus({ preventScroll: true });
+      setMenu(false);
+    }
+
+    destinations.forEach(({ link, page }) => {
+      link.addEventListener("click", () => navigateTo(page));
     });
-}
 
-function logoutUser(){
-  currentUser = null;
-  document.getElementById("password").value = "";
-  document.getElementById("messageInput").value = "";
-  document.getElementById("chatBox").innerHTML = "";
+    document.getElementById("brandHome").addEventListener("click", () => {
+      navigateTo(destinations[0].page);
+    });
 
-  document.getElementById("chat").style.display = "none";
-  document.getElementById("login").style.display = "block";
-  document.getElementById("passwordBox").style.display = "none";
-}
+    menuBtn.addEventListener("click", () => {
+      setMenu(menuBtn.getAttribute("aria-expanded") === "false");
+    });
 
-const startBirthdayBtn = document.getElementById("startBirthdayBtn");
-const giftBirthdayBtn = document.getElementById("giftBirthdayBtn");
-const cmdText = document.getElementById("cmdText");
-const cmdBox = document.getElementById("cmdBox");
+    document.addEventListener("click", ({ target }) => {
+      if (!siteHeader.contains(target)) setMenu(false);
+    });
 
-const poems = [
-  "你像清晨第一束光，温柔地落进心里。",
-  "你的笑，是我见过最安静的星河。",
-  "风经过花海，也不及你回眸温柔。",
-  "你是四季里最特别的春天。",
-  "世界很大，但你的名字最动听。"
-];
-
-const wishes = [
-  "愿你生日快乐，永远被温柔和好运包围。",
-  "愿你每天醒来，都有新的开心等着你。",
-  "愿你所想皆如愿，所行皆坦途。",
-  "愿你一直闪闪发光，一直被爱珍惜。",
-  "愿今天所有美好，都慢慢走向你。"
-];
-
-const thankText = "感谢 Kiki 陪着我，陪我度过这一段艰难的日子。你的出现像一束光，让很多辛苦的时刻都变得温柔。愿未来的每一天，你都平安、快乐、被爱包围。";
-
-function randomItem(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-function typeLine(text, delay = 35) {
-  return new Promise(resolve => {
-    let i = 0;
-    const line = document.createElement("div");
-    cmdText.appendChild(line);
-
-    const timer = setInterval(() => {
-      line.textContent += text[i];
-      i++;
-      cmdBox.scrollTop = cmdBox.scrollHeight;
-
-      if (i >= text.length) {
-        clearInterval(timer);
-        resolve();
+    siteHeader.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && menuPanel.classList.contains("show")) {
+        menuBtn.focus();
+        setMenu(false);
       }
-    }, delay);
-  });
-}
+    });
 
-startBirthdayBtn.onclick = async () => {
-  cmdText.innerHTML = "";
+    siteHeader.addEventListener("focusout", ({ relatedTarget }) => {
+      if (relatedTarget && !siteHeader.contains(relatedTarget)) setMenu(false);
+    });
 
-  await typeLine("> 正在启动 Kiki Birthday System...");
-  await typeLine("> Name: Kiki");
-  await typeLine("> Born Date: 27/3/2003");
-  await typeLine("> 正在准备生日礼物...");
-  await typeLine("> 请点击下方礼物按钮 🌹");
+    compactNav.addEventListener("change", () => setMenu(false));
 
-  giftBirthdayBtn.style.display = "inline-block";
-};
+    playVideoBtn.onclick = () => {
+      myVideo.play();
+    };
 
-giftBirthdayBtn.onclick = async () => {
-  for (let i = 0; i < 14; i++) {
-    const rose = document.createElement("div");
-    rose.className = "rose";
-    rose.textContent = "🌹";
-    rose.style.left = Math.random() * 85 + "%";
-    rose.style.bottom = "20px";
-    rose.style.animationDelay = Math.random() * 0.5 + "s";
-    cmdBox.appendChild(rose);
+    myVideo.addEventListener("play", () => {
+      bgm.pause();
+    });
 
-    setTimeout(() => rose.remove(), 2500);
-  }
+    myVideo.onended = () => {
+      // 不恢复音乐
+    };
 
-  await typeLine("> 礼物已打开：🌹 玫瑰正在绽放...");
-  await typeLine("> 诗句：" + randomItem(poems));
-  await typeLine("> 祝福：" + randomItem(wishes));
-  await typeLine("> 感谢函：" + thankText);
+    const chests = document.querySelectorAll(".chest");
+    const gameResult = document.getElementById("gameResult");
 
-  giftBirthdayBtn.style.display = "none";
-};
+    let rewardIndex = 0;
 
+    const rewards = [
+      { text: "💎 恭喜你获得钻石！", effect: "diamond" },
+      { text: "🟡 恭喜你获得黄金！", effect: "gold" },
+      { text: "💼 恭喜你获得幸运祝福！事业上涨！", effect: "luck" },
+      { text: "📦 很可惜是空宝箱，再接再厉！", effect: "empty" }
+    ];
+
+    function replayAnimation(element, className) {
+      element.classList.add(className);
+      element.getAnimations().forEach(animation => {
+        animation.currentTime = 0;
+        animation.play();
+      });
+    }
+
+    chests.forEach((chest) => {
+      const icon = chest.querySelector(".chest-icon");
+      chest.onclick = () => {
+        const reward = rewards[rewardIndex];
+        gameResult.textContent = reward.text;
+        icon.textContent = getIcon(reward.effect);
+        replayAnimation(gameResult, "is-revealed");
+        replayAnimation(icon, "is-open");
+
+        setTimeout(() => {
+          icon.textContent = "🎁";
+          icon.classList.remove("is-open");
+        }, 2000);
+
+        rewardIndex = (rewardIndex + 1) % rewards.length;
+      };
+    });
+
+    function getIcon(type) {
+      if (type === "diamond") return "💎";
+      if (type === "gold") return "🟡";
+      if (type === "luck") return "✨";
+      return "📦";
+    }
+
+    let currentUser = null;
+
+    const users = {
+      kiki: { name: "Kiki", password: "2299" },
+      ting: { name: "Ting Soon", password: "4488" }
+    };
+
+    function selectUser(user){
+      currentUser = user;
+      document.getElementById("password").value = "";
+      document.getElementById("passwordBox").style.display = "block";
+    }
+
+    function loginUser(){
+      const pwd = document.getElementById('password').value;
+
+      if(pwd === users[currentUser].password){
+        document.getElementById('login').style.display = "none";
+        document.getElementById('chat').style.display = "block";
+        document.getElementById('userTitle').innerText = users[currentUser].name;
+        loadMessages();
+
+        setInterval(loadMessages, 2000);
+
+      }else{
+        alert("密码错误");
+      }
+    }
+
+    function loadMessages(){
+      fetch("https://www-rocket-com.onrender.com/messages")
+        .then(res => res.json())
+        .then(messages => {
+          const now = Date.now();
+
+          if (messages.length > 0) {
+            const startTime = messages[0].created_at;
+            if (now - startTime > 86400000) {
+              fetch("https://www-rocket-com.onrender.com/messages", {
+                method: "DELETE"
+              }).then(() => {
+                render([]);
+              });
+              return;
+            }
+          }
+
+          render(messages);
+        })
+        .catch(err => {
+          console.log("读取消息失败:", err);
+        });
+    }
+
+    function render(messages){
+      const box = document.getElementById("chatBox");
+      box.innerHTML = "";
+
+      messages.forEach(m => {
+        const div = document.createElement("div");
+        div.innerText = (m.user === currentUser ? "我: " : "对方: ") + m.text;
+        div.className = m.user === currentUser ? "message is-own" : "message";
+        box.appendChild(div);
+      });
+    }
+
+    function sendMessage(){
+      const input = document.getElementById("messageInput");
+      const text = input.value.trim();
+      if(!text) return;
+
+      if(text.length > 40){
+        alert("超过40字");
+        return;
+      }
+
+      fetch("https://www-rocket-com.onrender.com/messages")
+        .then(res => res.json())
+        .then(messages => {
+          const now = Date.now();
+
+          if (messages.length > 0) {
+            const startTime = messages[0].created_at;
+
+            if (now - startTime > 86400000) {
+              return fetch("https://www-rocket-com.onrender.com/messages", {
+                method: "DELETE"
+              }).then(() => []);
+            }
+          }
+
+          return messages;
+        })
+        .then(messages => {
+          const now = Date.now();
+
+          if(messages.length >= 20){
+            const lockTime = messages[19].created_at;
+
+            if(now - lockTime < 86400000){
+              alert("已达20条，等24小时");
+              return;
+            } else {
+              return fetch("https://www-rocket-com.onrender.com/messages", {
+                method: "DELETE"
+              }).then(() => []);
+            }
+          }
+
+          return fetch("https://www-rocket-com.onrender.com/messages", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              user: currentUser,
+              text: text,
+              created_at: now
+            })
+          });
+        })
+        .then(() => {
+          input.value = "";
+          loadMessages();
+        })
+        .catch(err => {
+          console.log("发送失败:", err);
+        });
+    }
+
+    function logoutUser(){
+      currentUser = null;
+      document.getElementById("password").value = "";
+      document.getElementById("messageInput").value = "";
+      document.getElementById("chatBox").innerHTML = "";
+
+      document.getElementById("chat").style.display = "none";
+      document.getElementById("login").style.display = "block";
+      document.getElementById("passwordBox").style.display = "none";
+    }
+
+    const identityButtons = document.querySelectorAll(".identity");
+    const passwordInput = document.getElementById("password");
+    const chat = document.getElementById("chat");
+    const messageInput = document.getElementById("messageInput");
+
+    identityButtons.forEach(button => {
+      button.addEventListener("click", () => {
+        selectUser(button.dataset.user);
+        identityButtons.forEach(identity => {
+          identity.setAttribute("aria-pressed", String(identity === button));
+        });
+        passwordInput.focus();
+      });
+    });
+
+    document.getElementById("passwordBox").addEventListener("submit", (event) => {
+      event.preventDefault();
+      loginUser();
+      if (chat.style.display === "block") {
+        document.getElementById("userTitle").focus();
+      }
+    });
+
+    document.getElementById("chatForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      sendMessage();
+      messageInput.focus();
+    });
+
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      logoutUser();
+      identityButtons.forEach(button => button.setAttribute("aria-pressed", "false"));
+      identityButtons[0].focus();
+    });
+
+    const startBirthdayBtn = document.getElementById("startBirthdayBtn");
+    const giftBirthdayBtn = document.getElementById("giftBirthdayBtn");
+    const cmdText = document.getElementById("cmdText");
+    const cmdBox = document.getElementById("cmdBox");
+
+    const poems = [
+      "你像清晨第一束光，温柔地落进心里。",
+      "你的笑，是我见过最安静的星河。",
+      "风经过花海，也不及你回眸温柔。",
+      "你是四季里最特别的春天。",
+      "世界很大，但你的名字最动听。"
+    ];
+
+    const wishes = [
+      "愿你生日快乐，永远被温柔和好运包围。",
+      "愿你每天醒来，都有新的开心等着你。",
+      "愿你所想皆如愿，所行皆坦途。",
+      "愿你一直闪闪发光，一直被爱珍惜。",
+      "愿今天所有美好，都慢慢走向你。"
+    ];
+
+    const thankText = "感谢 Kiki 陪着我，陪我度过这一段艰难的日子。你的出现像一束光，让很多辛苦的时刻都变得温柔。愿未来的每一天，你都平安、快乐、被爱包围。";
+
+    function randomItem(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function typeLine(text, delay = 35) {
+      return new Promise(resolve => {
+        let i = 0;
+        const line = document.createElement("div");
+        cmdText.appendChild(line);
+
+        if (reducedMotion.matches) {
+          setTimeout(() => {
+            line.textContent = text;
+            cmdBox.scrollTop = cmdBox.scrollHeight;
+            resolve();
+          }, text.length * delay);
+          return;
+        }
+
+        const timer = setInterval(() => {
+          line.textContent += text[i];
+          i++;
+          cmdBox.scrollTop = cmdBox.scrollHeight;
+
+          if (i >= text.length) {
+            clearInterval(timer);
+            resolve();
+          }
+        }, delay);
+      });
+    }
+
+    startBirthdayBtn.onclick = async () => {
+      cmdText.innerHTML = "";
+
+      await typeLine("> 正在启动 Kiki Birthday System...");
+      await typeLine("> Name: Kiki");
+      await typeLine("> Born Date: 27/3/2003");
+      await typeLine("> 正在准备生日礼物...");
+      await typeLine("> 请点击下方礼物按钮 🌹");
+
+      giftBirthdayBtn.style.display = "inline-block";
+    };
+
+    giftBirthdayBtn.onclick = async () => {
+      for (let i = 0; !reducedMotion.matches && i < 14; i++) {
+        const rose = document.createElement("div");
+        rose.className = "rose";
+        rose.setAttribute("aria-hidden", "true");
+        rose.textContent = "🌹";
+        rose.style.left = Math.random() * 85 + "%";
+        rose.style.bottom = "20px";
+        rose.style.animationDelay = Math.random() * 0.5 + "s";
+        cmdBox.appendChild(rose);
+
+        setTimeout(() => rose.remove(), 2500);
+      }
+
+      await typeLine("> 礼物已打开：🌹 玫瑰正在绽放...");
+      await typeLine("> 诗句：" + randomItem(poems));
+      await typeLine("> 祝福：" + randomItem(wishes));
+      await typeLine("> 感谢函：" + thankText);
+
+      giftBirthdayBtn.style.display = "none";
+    };
   </script>
 </body>
 </html>
